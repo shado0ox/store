@@ -1,0 +1,26 @@
+{
+  "short_name": "خطوات",
+  "name": "خطوات الأناقة - متجر أحذية عصرية",
+  "description": "متجر الكتروني متخصص في بيع أرقى أنواع الأحذية الرياضية والكلاسيكية والكاجوال.",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/5499/5499206.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/5499/5499206.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#111827",
+  "theme_color": "#111827",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "dir": "rtl",
+  "lang": "ar-SA"
+}

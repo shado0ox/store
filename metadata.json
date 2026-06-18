@@ -1,0 +1,6 @@
+{
+  "name": "Shoe Store PWA",
+  "description": "متجر إلكتروني تفاعلي لبيع الأحذية متوافق مع الهواتف الذكية بنظام PWA ومزود بلوحة تحكم للمدير والتاجر متصل بقاعدة بيانات Appwrite والطلب عبر واتساب وماسينجر.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
