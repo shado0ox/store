@@ -8,7 +8,7 @@ import Cart from './components/Cart';
 import AdminDashboard from './components/AdminDashboard';
 import { 
   Footprints, Smartphone, Sparkles, Star, ShieldCheck, Heart, ThumbsUp, 
-  Search, RefreshCw, MessageCircle, Share2, HelpCircle 
+  Search, RefreshCw, MessageCircle, Share2, HelpCircle, Lock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -18,6 +18,25 @@ export default function App() {
   const [role, setRole] = useState<UserRole>(() => {
     return (localStorage.getItem('shoestore_dashboard_role') as UserRole) || 'merchant';
   });
+
+  // PIN security protection state for admin view
+  const [adminPinVerified, setAdminPinVerified] = useState(() => {
+    return sessionStorage.getItem('admin_pin_verified') === 'true';
+  });
+  const [enteredPin, setEnteredPin] = useState('');
+  const [pinError, setPinError] = useState('');
+
+  const handlePinSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const correctPin = (import.meta as any).env?.VITE_ADMIN_PIN || '1234';
+    if (enteredPin === correctPin) {
+      setAdminPinVerified(true);
+      sessionStorage.setItem('admin_pin_verified', 'true');
+      setPinError('');
+    } else {
+      setPinError('رمز PIN المدخل غير صحيح! يرجى المحاولة مرة أخرى ❌');
+    }
+  };
 
   // Products and Orders lists loaded from server
   const [products, setProducts] = useState<Product[]>([]);
@@ -360,6 +379,66 @@ export default function App() {
                 </div>
               </div>
 
+            </motion.div>
+          ) : !adminPinVerified ? (
+            /* SECURE PIN CHECK CARD */
+            <motion.div
+              key="pin-auth"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              className="max-w-md mx-auto my-14 p-8 bg-white rounded-3xl border border-gray-150 shadow-2xl text-right rtl-grid font-sans"
+              id="admin-pin-auth-card"
+            >
+              <div className="text-center mb-6">
+                <div className="w-14 h-14 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-500 mx-auto mb-4 border border-amber-100/50">
+                  <Lock size={28} />
+                </div>
+                <h2 className="text-xl font-black text-gray-900">حماية لوحة التحكم الإدارية 🔐</h2>
+                <p className="text-xs text-gray-450 mt-1.5 leading-relaxed">
+                  هذه المنطقة مخصصة لإدارة المتجر والطلبات السحابية. يرجى إدخال الرمز السري (PIN) للمتابعة.
+                </p>
+              </div>
+
+              {pinError && (
+                <div className="mb-4 p-3 bg-red-50 text-red-600 border border-red-100 text-xs font-bold rounded-2xl text-center">
+                  {pinError}
+                </div>
+              )}
+
+              <form onSubmit={handlePinSubmit} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-650">رمز PIN السري:</label>
+                  <input
+                    type="password"
+                    pattern="[0-9]*"
+                    inputMode="numeric"
+                    value={enteredPin}
+                    onChange={(e) => setEnteredPin(e.target.value)}
+                    placeholder="••••"
+                    maxLength={10}
+                    className="w-full px-4 py-3 bg-gray-50 rounded-xl border border-gray-200 text-center font-mono text-sm tracking-widest focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-amber-500/20"
+                    required
+                    autoFocus
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <button
+                    type="submit"
+                    className="py-3.5 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl font-black text-xs shadow-md transition-all cursor-pointer"
+                  >
+                    تأكيد الرمز 🔓
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentView('store')}
+                    className="py-3.5 bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-150 rounded-2xl font-black text-xs transition-all cursor-pointer"
+                  >
+                    العودة للمتجر 👟
+                  </button>
+                </div>
+              </form>
             </motion.div>
           ) : (
             

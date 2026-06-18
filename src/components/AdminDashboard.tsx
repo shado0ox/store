@@ -863,7 +863,7 @@ export default function AdminDashboard({
                         </tr>
                       ) : (
                         filteredOrders.map((o) => {
-                          const itemsSummary: any[] = JSON.parse(o.items || '[]');
+                          const itemsSummary: any[] = typeof o.items === 'string' ? JSON.parse(o.items || '[]') : o.items || [];
                           return (
                             <tr key={o.id} className="hover:bg-gray-50/50 transition-colors">
                               <td className="p-4">
@@ -1113,7 +1113,7 @@ export default function AdminDashboard({
                       <button
                         key={colorItem.id}
                         type="button"
-                        onClick={() => setCurrentThemeColor(colorItem.id)}
+                        onClick={() => setCurrentThemeColor(colorItem.id as any)}
                         className={`flex items-center gap-2.5 p-3 rounded-2xl border transition-all text-right cursor-pointer ${
                           currentThemeColor === colorItem.id 
                             ? 'border-gray-900 bg-gray-50/50 shadow-xs' 
@@ -1146,7 +1146,7 @@ export default function AdminDashboard({
                       <button
                         key={fontItem.id}
                         type="button"
-                        onClick={() => setCurrentFontFamily(fontItem.id)}
+                        onClick={() => setCurrentFontFamily(fontItem.id as any)}
                         className={`flex flex-col gap-1 p-4 rounded-2xl border transition-all text-right cursor-pointer ${
                           currentFontFamily === fontItem.id 
                             ? 'border-gray-900 bg-gray-50/50 shadow-xs' 

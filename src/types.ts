@@ -26,7 +26,7 @@ export interface Order {
   customerName: string;
   customerPhone: string;
   customerAddress: string;
-  items: string; // JSON string representing CartItemSummary[]
+  items: string | CartItemSummary[]; // JSON string or parsed array representing CartItemSummary[]
   totalPrice: number;
   status: 'pending' | 'shipping' | 'completed' | 'cancelled';
   notes?: string;

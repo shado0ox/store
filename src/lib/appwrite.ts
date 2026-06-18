@@ -16,30 +16,26 @@ class AppwriteService {
     this.loadSavedConfig();
   }
 
-  // Load configuration from local storage or environment variables
+  // Load configuration solely from environment variables (do NOT save of load configuration from localStorage or allow edits from UI)
   private loadSavedConfig() {
     try {
-      const saved = localStorage.getItem(APPWRITE_CONFIG_KEY);
-      if (saved) {
-        this.config = JSON.parse(saved);
-      } else {
-        // Try environment variables as template fallback
-        const _meta = import.meta as any;
-        const endpoint = _meta.env?.VITE_APPWRITE_ENDPOINT || '';
-        const projectId = _meta.env?.VITE_APPWRITE_PROJECT_ID || '';
-        const databaseId = _meta.env?.VITE_APPWRITE_DATABASE_ID || '';
-        const productsCol = _meta.env?.VITE_APPWRITE_COLLECTION_PRODUCTS_ID || '';
-        const ordersCol = _meta.env?.VITE_APPWRITE_COLLECTION_ORDERS_ID || '';
+      const _meta = import.meta as any;
+      const endpoint = _meta.env?.VITE_APPWRITE_ENDPOINT || '';
+      const projectId = _meta.env?.VITE_APPWRITE_PROJECT_ID || '';
+      const databaseId = _meta.env?.VITE_APPWRITE_DATABASE_ID || '';
+      const productsCol = _meta.env?.VITE_APPWRITE_COLLECTION_PRODUCTS_ID || '';
+      const ordersCol = _meta.env?.VITE_APPWRITE_COLLECTION_ORDERS_ID || '';
 
-        if (endpoint && projectId && databaseId && productsCol && ordersCol) {
-          this.config = {
-            endpoint,
-            projectId,
-            databaseId,
-            productsCollectionId: productsCol,
-            ordersCollectionId: ordersCol,
-          };
-        }
+      if (endpoint && projectId && databaseId && productsCol && ordersCol) {
+        this.config = {
+          endpoint,
+          projectId,
+          databaseId,
+          productsCollectionId: productsCol,
+          ordersCollectionId: ordersCol,
+        };
+      } else {
+        this.config = null;
       }
 
       if (this.config && this.config.endpoint && this.config.projectId) {
@@ -47,30 +43,16 @@ class AppwriteService {
           .setEndpoint(this.config.endpoint)
           .setProject(this.config.projectId);
         this.databases = new Databases(this.client);
-        console.log('Appwrite client initialized successfully');
+        console.log('Appwrite client initialized successfully from environment variables');
       }
     } catch (e) {
       console.error('Failed to load Appwrite configuration:', e);
     }
   }
 
-  // Save/Update configuration at runtime
+  // Configuration updates from the UI are not allowed as per requirements (rely on environment variables only)
   public setConfig(config: AppwriteConfig | null) {
-    if (!config) {
-      localStorage.removeItem(APPWRITE_CONFIG_KEY);
-      this.config = null;
-      this.client = null;
-      this.databases = null;
-      return;
-    }
-
-    localStorage.setItem(APPWRITE_CONFIG_KEY, JSON.stringify(config));
-    this.config = config;
-    this.client = new Client()
-      .setEndpoint(config.endpoint)
-      .setProject(config.projectId);
-    this.databases = new Databases(this.client);
-    console.log('Appwrite client re-initialized with new configuration');
+    console.log('Appwrite: Dynamic UI-based configuration is disabled. Relying strictly on environment variables.');
   }
 
   public getConfig(): AppwriteConfig | null {
@@ -139,7 +121,7 @@ class AppwriteService {
   }
 
   public async createProduct(productData: Omit<Product, 'id'>): Promise<Product> {
-    const id = 'prod_' + Math.random().toString(36).substr(2, 9);
+    const id = 'prod_' + crypto.randomUUID();
     const newProduct: Product = { ...productData, id };
 
     if (this.isConnected() && this.databases && this.config) {
@@ -247,17 +229,28 @@ class AppwriteService {
           [Query.orderDesc('createdAt')]
         );
 
-        const orders: Order[] = response.documents.map((doc: any) => ({
-          id: doc.$id,
-          customerName: doc.customerName,
-          customerPhone: doc.customerPhone,
-          customerAddress: doc.customerAddress,
-          items: doc.items,
-          totalPrice: doc.totalPrice,
-          status: doc.status || 'pending',
-          notes: doc.notes || undefined,
-          createdAt: doc.createdAt || new Date().toISOString()
-        }));
+        const orders: Order[] = response.documents.map((doc: any) => {
+          let parsedItems = [];
+          if (doc.items) {
+            try {
+              parsedItems = typeof doc.items === 'string' ? JSON.parse(doc.items) : doc.items;
+            } catch (e) {
+              console.warn('Appwrite: failed parsing items format for order:', doc.$id, e);
+              parsedItems = [];
+            }
+          }
+          return {
+            id: doc.$id,
+            customerName: doc.customerName,
+            customerPhone: doc.customerPhone,
+            customerAddress: doc.customerAddress,
+            items: parsedItems,
+            totalPrice: doc.totalPrice,
+            status: doc.status || 'pending',
+            notes: doc.notes || undefined,
+            createdAt: doc.createdAt || new Date().toISOString()
+          };
+        });
 
         localStorage.setItem(ORDERS_LOCAL_KEY, JSON.stringify(orders));
         return orders;
@@ -287,7 +280,7 @@ class AppwriteService {
   }
 
   public async createOrder(orderData: Omit<Order, 'id'>): Promise<Order> {
-    const id = 'order_' + Math.random().toString(36).substr(2, 9);
+    const id = 'order_' + crypto.randomUUID();
     const newOrder: Order = { ...orderData, id };
 
     if (this.isConnected() && this.databases && this.config) {
@@ -300,7 +293,7 @@ class AppwriteService {
             customerName: orderData.customerName,
             customerPhone: orderData.customerPhone,
             customerAddress: orderData.customerAddress,
-            items: orderData.items,
+            items: JSON.stringify(orderData.items),
             totalPrice: orderData.totalPrice,
             status: orderData.status,
             notes: orderData.notes || '',
