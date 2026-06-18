@@ -114,5 +114,12 @@ export const DEFAULT_SETTINGS: MerchantSettings = {
   messengerUsername: 'shoestore.pwa',
   currency: 'ج.م',
   storeName: 'خطوات الأناقة',
-  storeSlogan: 'بوابتك إلى عالم الجودة والموضة في الأحذية العصرية'
+  storeSlogan: 'بوابتك إلى عالم الجودة والموضة في الأحذية العصرية',
+  themeColor: 'amber',
+  fontFamily: 'Tajawal',
+  visibleTabs: ['stats', 'products', 'orders', 'store', 'dev'],
+  merchantEmail: 'merchant@store.com',
+  merchantPassword: 'merchant123',
+  devEmail: 'developer@admin.com',
+  devPassword: 'developer123'
 };

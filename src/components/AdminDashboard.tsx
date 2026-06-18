@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Product, Order, MerchantSettings, UserRole } from '../types';
+import { Product, Order, MerchantSettings, UserRole, getThemeClasses } from '../types';
 import { appwriteService } from '../lib/appwrite';
 import { 
   Plus, Edit, Trash2, Settings, ClipboardList, Check, X, TrendingUp, 
   ShoppingBag, Archive, DollarSign, Loader2, Phone, Save, Zap, 
-  ChevronRight, RefreshCw, Layers, ToggleLeft, ToggleRight, User, Key, Users
+  ChevronRight, RefreshCw, Layers, ToggleLeft, ToggleRight, User, Key, Users,
+  LogOut, Palette, ShieldCheck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import AppwriteSetup from './AppwriteSetup';
@@ -23,7 +24,7 @@ export default function AdminDashboard({
   products, orders, onRefreshData, settings, onSaveSettings, role, onChangeRole 
 }: AdminDashboardProps) {
   
-  const [activeTab, setActiveTab] = useState<'stats' | 'products' | 'orders' | 'configs' | 'store'>('stats');
+  const [activeTab, setActiveTab] = useState<'stats' | 'products' | 'orders' | 'configs' | 'store' | 'developer_design'>('stats');
   const [loading, setLoading] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -48,6 +49,35 @@ export default function AdminDashboard({
   const [sStoreName, setSStoreName] = useState(settings.storeName);
   const [sStoreSlogan, setSStoreSlogan] = useState(settings.storeSlogan);
 
+  // Secure Authentication states
+  const [isAuthed, setIsAuthed] = useState(() => localStorage.getItem('shoestore_dashboard_authed') === 'true');
+  const [selectedLoginType, setSelectedLoginType] = useState<'merchant' | 'admin'>('merchant');
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authError, setAuthError] = useState('');
+
+  // Developer custom settings states
+  const [mEmailInput, setMEmailInput] = useState(settings.merchantEmail || 'merchant@store.com');
+  const [mPassInput, setMPassInput] = useState(settings.merchantPassword || 'merchant123');
+  const [dEmailInput, setDEmailInput] = useState(settings.devEmail || 'developer@admin.com');
+  const [dPassInput, setDPassInput] = useState(settings.devPassword || 'developer123');
+  const [visibleTabs, setVisibleTabs] = useState<string[]>(
+    settings.visibleTabs || ['stats', 'products', 'orders', 'store', 'dev']
+  );
+  const [currentThemeColor, setCurrentThemeColor] = useState(settings.themeColor || 'amber');
+  const [currentFontFamily, setCurrentFontFamily] = useState(settings.fontFamily || 'Tajawal');
+
+  // Dynamic Categories in Navbar
+  const [categoriesList, setCategoriesList] = useState<{ id: string; name: string }[]>(
+    settings.categories || [
+      { id: 'أحذية رياضية', name: 'رياضية ⚡' },
+      { id: 'أحذية كاجوال', name: 'كاجوال ✨' },
+      { id: 'أحذية كلاسيك', name: 'كلاسيك 👑' },
+      { id: 'أحذية نسائية', name: 'نسائية 🌸' }
+    ]
+  );
+  const [newCatName, setNewCatName] = useState('');
+
   // Active inputs helpers
   const [newSizeInput, setNewSizeInput] = useState<number | ''>('');
   const [newColorInput, setNewColorInput] = useState('#111827');
@@ -57,13 +87,37 @@ export default function AdminDashboard({
   const [productSearch, setProductSearch] = useState('');
   const [orderFilter, setOrderFilter] = useState<'all' | 'pending' | 'shipping' | 'completed' | 'cancelled'>('all');
 
+  const t = getThemeClasses(settings.themeColor);
+
   useEffect(() => {
     setSWhatsapp(settings.whatsappNumber);
     setSMessenger(settings.messengerUsername);
     setSCurrency(settings.currency);
     setSStoreName(settings.storeName);
     setSStoreSlogan(settings.storeSlogan);
+
+    setMEmailInput(settings.merchantEmail || 'merchant@store.com');
+    setMPassInput(settings.merchantPassword || 'merchant123');
+    setDEmailInput(settings.devEmail || 'developer@admin.com');
+    setDPassInput(settings.devPassword || 'developer123');
+    setVisibleTabs(settings.visibleTabs || ['stats', 'products', 'orders', 'store', 'dev']);
+    setCurrentThemeColor(settings.themeColor || 'amber');
+    setCurrentFontFamily(settings.fontFamily || 'Tajawal');
+    setCategoriesList(
+      settings.categories || [
+        { id: 'أحذية رياضية', name: 'رياضية ⚡' },
+        { id: 'أحذية كاجوال', name: 'كاجوال ✨' },
+        { id: 'أحذية كلاسيك', name: 'كلاسيك 👑' },
+        { id: 'أحذية نسائية', name: 'نسائية 🌸' }
+      ]
+    );
   }, [settings]);
+
+  // Check tab visibility
+  const isTabVisible = (tabKey: string) => {
+    if (['stats', 'products', 'orders', 'store'].includes(tabKey)) return true;
+    return visibleTabs.includes(tabKey);
+  };
 
   // Statistics Computations
   const stats = {
@@ -189,13 +243,30 @@ export default function AdminDashboard({
   const handleApplySettings = (e: React.FormEvent) => {
     e.preventDefault();
     onSaveSettings({
+      ...settings,
       whatsappNumber: sWhatsapp,
       messengerUsername: sMessenger,
       currency: sCurrency,
       storeName: sStoreName,
       storeSlogan: sStoreSlogan
     });
-    alert('تم حفظ إعدادات الاتصال وبينايات المتجر بنجاح!');
+    alert('تم حفظ إعدادات الاتصال وبيانات المتجر بنجاح!');
+  };
+
+  const handleApplyDeveloperSettings = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSaveSettings({
+      ...settings,
+      themeColor: currentThemeColor as any,
+      fontFamily: currentFontFamily as any,
+      visibleTabs: visibleTabs,
+      merchantEmail: mEmailInput,
+      merchantPassword: mPassInput,
+      devEmail: dEmailInput,
+      devPassword: dPassInput,
+      categories: categoriesList
+    });
+    alert('تم حفظ تنسيقات المطور، الألوان وتراخيص لوحة التحكم بنجاح! سيتم تطبيق المظهر المختار والتبويبات فوراً 🎨');
   };
 
   // Size Helper Handlers
@@ -244,112 +315,314 @@ export default function AdminDashboard({
     return o.status === orderFilter;
   });
 
+  const handleLoginSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError('');
+    
+    const merchantEmail = settings.merchantEmail || 'merchant@store.com';
+    const merchantPassword = settings.merchantPassword || 'merchant123';
+    const devEmail = settings.devEmail || 'developer@admin.com';
+    const devPassword = settings.devPassword || 'developer123';
+
+    if (authEmail.trim().toLowerCase() === merchantEmail.trim().toLowerCase() && authPassword === merchantPassword) {
+      onChangeRole('merchant');
+      setIsAuthed(true);
+      localStorage.setItem('shoestore_dashboard_authed', 'true');
+      localStorage.setItem('shoestore_dashboard_role', 'merchant');
+    } else if (authEmail.trim().toLowerCase() === devEmail.trim().toLowerCase() && authPassword === devPassword) {
+      onChangeRole('admin');
+      setIsAuthed(true);
+      localStorage.setItem('shoestore_dashboard_authed', 'true');
+      localStorage.setItem('shoestore_dashboard_role', 'admin');
+    } else {
+      setAuthError('عذراً، البريد الإلكتروني أو كلمة المرور غير صحيحة. يرجى المراجعة والمحاولة مجدداً.');
+    }
+  };
+
+  const handleQuickLogin = (type: 'merchant' | 'admin') => {
+    setAuthError('');
+    const email = type === 'merchant' ? (settings.merchantEmail || 'merchant@store.com') : (settings.devEmail || 'developer@admin.com');
+    const password = type === 'merchant' ? (settings.merchantPassword || 'merchant123') : (settings.devPassword || 'developer123');
+    
+    setAuthEmail(email);
+    setAuthPassword(password);
+    onChangeRole(type === 'merchant' ? 'merchant' : 'admin');
+    setIsAuthed(true);
+    localStorage.setItem('shoestore_dashboard_authed', 'true');
+    localStorage.setItem('shoestore_dashboard_role', type === 'merchant' ? 'merchant' : 'admin');
+  };
+
+  const handleLogout = () => {
+    setIsAuthed(false);
+    localStorage.removeItem('shoestore_dashboard_authed');
+    localStorage.removeItem('shoestore_dashboard_role');
+    setAuthEmail('');
+    setAuthPassword('');
+  };
+
+  if (!isAuthed) {
+    const brandClasses = getThemeClasses(settings.themeColor);
+    return (
+      <div className="max-w-xl mx-auto my-14 p-1 bg-white rounded-3xl border border-gray-150 shadow-2xl text-right rtl-grid font-sans overflow-hidden" id="admin-login-layout">
+        {/* Decorative Top Accent */}
+        <div className={`p-6 text-white text-center relative ${selectedLoginType === 'merchant' ? 'bg-blue-600' : 'bg-amber-500'} transition-all duration-300`}>
+          <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center text-white mx-auto shadow-md hover:scale-110 transition-transform mb-3">
+            <ShieldCheck size={26} />
+          </div>
+          <h2 className="text-xl font-black">تسجيل الدخول الإداري للمتجر 🛡️</h2>
+          <p className="text-xs text-white/80 mt-1">الربط الآمن المباشر بكفاءة PWA وربط الطلبات السحابية</p>
+        </div>
+
+        {/* Tab Selection */}
+        <div className="p-6 pb-0">
+          <div className="grid grid-cols-2 p-1 bg-gray-100 rounded-2xl border border-gray-200">
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedLoginType('merchant');
+                setAuthError('');
+              }}
+              className={`py-3 text-xs font-black rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                selectedLoginType === 'merchant'
+                  ? 'bg-white text-blue-600 shadow-xs'
+                  : 'text-gray-500 hover:text-gray-900'
+              }`}
+            >
+              <User size={14} />
+              إدارة التاجر والمشرف 💼
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedLoginType('admin');
+                setAuthError('');
+              }}
+              className={`py-3 text-xs font-black rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                selectedLoginType === 'admin'
+                  ? 'bg-white text-amber-500 shadow-xs'
+                  : 'text-gray-500 hover:text-gray-900'
+              }`}
+            >
+              <Palette size={14} />
+              إدارة وتطوير المشرف العام 👑
+            </button>
+          </div>
+        </div>
+
+        {/* Dynamic description of role capabilities */}
+        <div className="px-6 pt-4">
+          <div className={`p-4 rounded-2xl text-xs font-medium border leading-relaxed ${
+            selectedLoginType === 'merchant' 
+              ? 'bg-blue-50/50 border-blue-100 text-blue-800' 
+              : 'bg-amber-50/50 border-amber-100 text-amber-800'
+          }`}>
+            {selectedLoginType === 'merchant' ? (
+              <div>
+                <strong>صلاحيات المشرف التاجر:</strong>
+                <ul className="list-disc list-inside mt-1.5 space-y-1 font-sans">
+                  <li>إضافة الأحذية للكتالوج وتعديل الأسعار والمقاسات والألوان.</li>
+                  <li>تلقي الطلبات الحقيقية وتغيير حالات الشحن والتجهيز.</li>
+                  <li>رؤية إحصاءات المبيعات والأرباح وتعديل عملة المتجر وهواتف الاتصال.</li>
+                </ul>
+              </div>
+            ) : (
+              <div>
+                <strong>صلاحيات المطور والمشرف العام:</strong>
+                <ul className="list-disc list-inside mt-1.5 space-y-1 font-sans">
+                  <li>تعديل مظهر وتصميم الموقع بالكامل (الألوان والثيم والخطوط).</li>
+                  <li>تحديد التبويبات الفاعلة وإمكانية تخصيص ربط سيرفر Appwrite.</li>
+                  <li>الوصول الكامل لكافة التبويبات وإعادة برمجة المتجر.</li>
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="p-6 space-y-5">
+          {authError && (
+            <div className="p-3.5 bg-red-50 text-red-600 border border-red-100 text-xs font-bold rounded-2xl text-center">
+              {authError}
+            </div>
+          )}
+
+          <form onSubmit={handleLoginSubmit} className="space-y-4 text-sm font-semibold">
+            <div className="space-y-1.5">
+              <label className="text-xs text-gray-650">البريد الإلكتروني المعتمد للرتبة:</label>
+              <input
+                type="email"
+                value={authEmail}
+                onChange={(e) => setAuthEmail(e.target.value)}
+                placeholder={selectedLoginType === 'merchant' ? 'merchant@store.com' : 'developer@admin.com'}
+                className="w-full px-4 py-3 bg-gray-50 rounded-xl border border-gray-200 focus:bg-white focus:ring-2 focus:ring-gray-350 outline-hidden font-mono text-left"
+                required
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs text-gray-650">كلمة المرور السرية:</label>
+              <input
+                type="password"
+                value={authPassword}
+                onChange={(e) => setAuthPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full px-4 py-3 bg-gray-50 rounded-xl border border-gray-200 focus:bg-white focus:ring-2 focus:ring-gray-350 outline-hidden font-mono text-left"
+                required
+              />
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="submit"
+                className={`flex-1 py-3.5 text-white rounded-2xl font-black text-xs shadow-md transition-all cursor-pointer ${
+                  selectedLoginType === 'merchant'
+                    ? 'bg-blue-600 hover:bg-blue-700'
+                    : 'bg-amber-500 hover:bg-amber-600'
+                }`}
+              >
+                تأكيد وبدء الاتصال باللوحة 🔓
+              </button>
+
+              {/* Instant One-Tap Auto Login button */}
+              <button
+                type="button"
+                onClick={() => handleQuickLogin(selectedLoginType)}
+                className={`py-3.5 px-4 rounded-2xl font-black text-xs border transition-all cursor-pointer flex items-center gap-1.5 ${
+                  selectedLoginType === 'merchant'
+                    ? 'border-blue-200 bg-blue-50/40 text-blue-700 hover:bg-blue-50'
+                    : 'border-amber-200 bg-amber-50/40 text-amber-700 hover:bg-amber-50'
+                }`}
+              >
+                <Zap size={14} className="animate-pulse" />
+                دخول تلقائي سريع ⚡
+              </button>
+            </div>
+          </form>
+
+          <div className="pt-4 border-t border-gray-100 text-center text-[10px] text-gray-400 font-medium">
+            تأكد من الاحتفاظ ببيانات الدخول الإدارية لتطبيقات PWA في مكان آمن.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 text-right rtl-grid" id="admin-board-view">
+    <div className="max-w-7xl mx-auto px-4 py-8 text-right rtl-grid font-sans" id="admin-board-view">
       
       {/* Role and Header Bar */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 bg-white p-6 rounded-3xl border border-gray-100 shadow-xs">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs bg-gray-100 text-gray-700 font-bold px-3 py-1 rounded-full flex items-center gap-1">
+            <span className="text-xs bg-gray-100 text-gray-750 font-bold px-3 py-1 rounded-full flex items-center gap-1">
               <User size={13} />
-              رتبتك: {role === 'admin' ? 'المدير العام 👑' : 'التاجر / المشرف 💼'}
+              رتبة الحساب: {role === 'admin' ? 'المدير العام والمطور 👑' : 'التاجر والمشرف 💼'}
             </span>
             <span className="text-xs bg-gray-800 text-white font-mono px-3 py-1 rounded-full">
-              PWA PANEL
+              PWA LIVE MODE
             </span>
           </div>
           <h1 className="text-2xl font-black text-gray-900">لوحة القيادة الإدارية للمتجر</h1>
-          <p className="text-sm text-gray-500">مرحباً بك في لوحة الاستعلامات الشاملة وإدارة الكتالوجات والطلب.</p>
+          <p className="text-sm text-gray-500 font-medium">مرحباً بك في لوحة الاستعلامات الشاملة وإدارة الكتالوجات والطلب.</p>
         </div>
 
-        {/* Change Role Simulator Switcher */}
+        {/* Real Logout Button */}
         <div className="flex items-center gap-2.5 mr-auto">
-          <span className="text-xs font-semibold text-gray-400">محاكاة الصلاحيات:</span>
-          <div className="bg-gray-100 rounded-2xl p-1 flex gap-1">
-            <button
-              onClick={() => onChangeRole('merchant')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                role === 'merchant' ? 'bg-amber-500 text-white shadow-xs' : 'text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              تاجر / مشرف
-            </button>
-            <button
-              onClick={() => onChangeRole('admin')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                role === 'admin' ? 'bg-amber-500 text-white shadow-xs' : 'text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              المدير العام (الكل)
-            </button>
-          </div>
+          <button
+            onClick={handleLogout}
+            className="px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-650 rounded-2xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border border-red-200/50"
+          >
+            <LogOut size={14} className="rotate-180" />
+            تسجيل الخروج الآمن
+          </button>
         </div>
       </div>
 
       {/* Tabs Navigation */}
       <div className="flex xl:flex-row flex-col gap-6" id="dashboard-tab-layout">
         <div className="flex xl:flex-col flex-row gap-2 overflow-x-auto pb-2 xl:pb-0 w-full xl:w-64 shrink-0 no-scrollbar">
-          <button
-            onClick={() => setActiveTab('stats')}
-            className={`flex items-center gap-3 px-5 py-4 rounded-2xl text-sm font-bold whitespace-nowrap transition-all cursor-pointer ${
-              activeTab === 'stats' 
-                ? 'bg-gray-900 text-white shadow-md' 
-                : 'bg-white text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            <TrendingUp size={18} />
-            إحصائيات المبيعات والنشاط
-          </button>
           
-          <button
-            onClick={() => setActiveTab('products')}
-            className={`flex items-center gap-3 px-5 py-4 rounded-2xl text-sm font-bold whitespace-nowrap transition-all cursor-pointer ${
-              activeTab === 'products' 
-                ? 'bg-gray-900 text-white shadow-md' 
-                : 'bg-white text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            <Archive size={18} />
-            إدارة الأحذية ({products.length})
-          </button>
+          {isTabVisible('stats') && (
+            <button
+              onClick={() => setActiveTab('stats')}
+              className={`flex items-center gap-3 px-5 py-4 rounded-2xl text-sm font-bold whitespace-nowrap transition-all cursor-pointer ${
+                activeTab === 'stats' 
+                  ? `${t.bg} text-white shadow-md` 
+                  : 'bg-white text-gray-650 hover:bg-gray-100'
+              }`}
+            >
+              <TrendingUp size={18} />
+              إحصائيات المبيعات والنشاط
+            </button>
+          )}
 
-          <button
-            onClick={() => setActiveTab('orders')}
-            className={`flex items-center gap-3 px-5 py-4 rounded-2xl text-sm font-bold whitespace-nowrap transition-all cursor-pointer ${
-              activeTab === 'orders' 
-                ? 'bg-gray-900 text-white shadow-md' 
-                : 'bg-white text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            <ClipboardList size={18} />
-            إدارة الطلبات المستلمة ({orders.length})
-            {stats.pendingOrders > 0 && (
-              <span className="bg-red-500 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center animate-pulse">
-                {stats.pendingOrders}
-              </span>
-            )}
-          </button>
+          {isTabVisible('products') && (
+            <button
+              onClick={() => setActiveTab('products')}
+              className={`flex items-center gap-3 px-5 py-4 rounded-2xl text-sm font-bold whitespace-nowrap transition-all cursor-pointer ${
+                activeTab === 'products' 
+                  ? `${t.bg} text-white shadow-md` 
+                  : 'bg-white text-gray-650 hover:bg-gray-100'
+              }`}
+            >
+              <Archive size={18} />
+              إدارة الأحذية ({products.length})
+            </button>
+          )}
 
-          <button
-            onClick={() => setActiveTab('store')}
-            className={`flex items-center gap-3 px-5 py-4 rounded-2xl text-sm font-bold whitespace-nowrap transition-all cursor-pointer ${
-              activeTab === 'store' 
-                ? 'bg-gray-900 text-white shadow-md' 
-                : 'bg-white text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            <Settings size={18} />
-            عناوين الاتصال والعملات
-          </button>
+          {isTabVisible('orders') && (
+            <button
+              onClick={() => setActiveTab('orders')}
+              className={`flex items-center gap-3 px-5 py-4 rounded-2xl text-sm font-bold whitespace-nowrap transition-all cursor-pointer ${
+                activeTab === 'orders' 
+                  ? `${t.bg} text-white shadow-md` 
+                  : 'bg-white text-gray-650 hover:bg-gray-100'
+              }`}
+            >
+              <ClipboardList size={18} />
+              إدارة الطلبات المستلمة ({orders.length})
+              {stats.pendingOrders > 0 && (
+                <span className="bg-red-550 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center animate-pulse font-mono">
+                  {stats.pendingOrders}
+                </span>
+              )}
+            </button>
+          )}
+
+          {isTabVisible('store') && (
+            <button
+              onClick={() => setActiveTab('store')}
+              className={`flex items-center gap-3 px-5 py-4 rounded-2xl text-sm font-bold whitespace-nowrap transition-all cursor-pointer ${
+                activeTab === 'store' 
+                  ? `${t.bg} text-white shadow-md` 
+                  : 'bg-white text-gray-650 hover:bg-gray-100'
+              }`}
+            >
+              <Settings size={18} />
+              عناوين الاتصال والعملات
+            </button>
+          )}
+
+          {role === 'admin' && (
+            <button
+              onClick={() => setActiveTab('developer_design')}
+              className={`flex items-center gap-3 px-5 py-4 rounded-2xl text-sm font-bold whitespace-nowrap transition-all cursor-pointer ${
+                activeTab === 'developer_design' 
+                  ? `${t.bg} text-white shadow-md` 
+                  : 'bg-white text-gray-650 hover:bg-gray-100'
+              }`}
+            >
+              <Palette size={18} />
+              تطوير ومظهر الموقع 🎨
+            </button>
+          )}
 
           {role === 'admin' && (
             <button
               onClick={() => setActiveTab('configs')}
               className={`flex items-center gap-3 px-5 py-4 rounded-2xl text-sm font-bold whitespace-nowrap transition-all cursor-pointer ${
                 activeTab === 'configs' 
-                  ? 'bg-gray-900 text-white shadow-md' 
-                  : 'bg-white text-gray-600 hover:bg-gray-100'
+                  ? `${t.bg} text-white shadow-md` 
+                  : 'bg-white text-gray-650 hover:bg-gray-100'
               }`}
             >
               <Key size={18} />
@@ -730,7 +1003,67 @@ export default function AdminDashboard({
                   </div>
                 </div>
 
-                <div className="flex justify-end pt-3">
+                {/* Dynamic Navbar Categories Customization for Store Panel */}
+                <div className="space-y-4 pt-6 border-t border-gray-100">
+                  <h3 className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
+                    <span className="w-1.5 h-4 bg-amber-500 rounded-full inline-block"></span>
+                    تعديل تصنيفات وتبويبات النيف بار في المتجر (Dynamic Navbar Tabs):
+                  </h3>
+                  <p className="text-xs text-gray-400 font-medium font-sans">
+                    تعديل وتحديد التصنيفات التي تظهر للزبائن في أعلى الموقع لتصفية الأحذية المعروضة بالمتجر. يمكنك الإضافة أو الحذف فوراً:
+                  </p>
+
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newCatName}
+                      onChange={(e) => setNewCatName(e.target.value)}
+                      placeholder="امثلة: كلاسيك 👑، أحذية جري ⚡، عروض التصفية 🏷️"
+                      className="px-3.5 py-2.5 bg-gray-50 rounded-xl border border-gray-200 text-xs text-right focus:bg-white focus:ring-2 focus:ring-amber-500/20 outline-hidden flex-1"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (newCatName.trim()) {
+                          const id = newCatName.trim();
+                          if (!categoriesList.some(cat => cat.id === id)) {
+                            setCategoriesList([...categoriesList, { id, name: id }]);
+                          }
+                          setNewCatName('');
+                        }
+                      }}
+                      className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    >
+                      <Plus size={14} />
+                      إضافة تبويب جديد
+                    </button>
+                  </div>
+
+                  {/* Display list of current categories */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2">
+                    <div className="p-3 bg-gray-100 rounded-2xl border border-gray-200/50 flex justify-between items-center text-xs font-bold text-gray-500 select-none">
+                      <span>الكل 👟 (افتراضي دائم)</span>
+                    </div>
+
+                    {categoriesList.map((cat, index) => (
+                      <div key={cat.id} className="p-3 bg-white rounded-2xl border border-gray-150 flex justify-between items-center text-xs font-bold text-gray-800 shadow-2xs hover:border-gray-300 transition-all">
+                        <span>{cat.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCategoriesList(categoriesList.filter((_, i) => i !== index));
+                          }}
+                          className="p-1 text-red-500 hover:bg-red-50 rounded-lg transition-all cursor-pointer"
+                          title="حذف هذا التبويب"
+                        >
+                          <X size={13} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-5">
                   <button
                     type="submit"
                     className="px-6 py-3.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold text-sm flex items-center gap-2 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all cursor-pointer"
@@ -739,6 +1072,283 @@ export default function AdminDashboard({
                     حفظ تفاصيل المتجر وقنوات الاستقبال
                   </button>
                 </div>
+              </form>
+            </div>
+          )}
+
+          {/* DEVELOPER DESIGN & BRANDING PANEL */}
+          {activeTab === 'developer_design' && role === 'admin' && (
+            <div className="bg-white rounded-3xl p-6 md:p-8 border border-gray-100 shadow-xs space-y-8" id="dashboard-panel-dev-design">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 mb-2 flex items-center gap-2">
+                  <Palette className="text-amber-500" size={24} />
+                  لوحة تخصيص وتطوير تصميم وهيكل الموقع 🎨
+                </h2>
+                <p className="text-sm text-gray-500 pb-4 border-b border-gray-100">
+                  لوحة تحكم حصرية للمشرف العام والمطور للتعديل الكامل على مظهر الموقع، الألوان الحية، نوع الخطوط، والتحكم الكامل في تبويبات التاجر.
+                </p>
+              </div>
+
+              <form onSubmit={handleApplyDeveloperSettings} className="space-y-8">
+                
+                {/* 1. Theme Color Selection */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
+                    <span className="w-1.5 h-4 bg-amber-500 rounded-full inline-block"></span>
+                    اختر اللون الرئيسي للمتجر (Theme Color Accent):
+                  </h3>
+                  <p className="text-xs text-gray-400 font-medium font-sans">سيتم تطبيق هذا اللون على كامل أزرار المتجر، السلة وهواتف الاتصال فوراً بمرونة تامة.</p>
+                  
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
+                    {[
+                      { id: 'amber', name: 'الذهبي / الكهرماني', bg: 'bg-amber-500' },
+                      { id: 'blue', name: 'الأزرق الكلاسيكي', bg: 'bg-blue-600' },
+                      { id: 'emerald', name: 'الأخضر الزمردي', bg: 'bg-emerald-600' },
+                      { id: 'indigo', name: 'النيلي الهادئ', bg: 'bg-indigo-600' },
+                      { id: 'rose', name: 'الوردي الحيوي', bg: 'bg-rose-600' },
+                      { id: 'red', name: 'الأحمر الناري', bg: 'bg-red-600' },
+                      { id: 'violet', name: 'البنفسجي الجذاب', bg: 'bg-violet-600' },
+                      { id: 'slate', name: 'الرمادي الفولاذي', bg: 'bg-slate-700' },
+                    ].map((colorItem) => (
+                      <button
+                        key={colorItem.id}
+                        type="button"
+                        onClick={() => setCurrentThemeColor(colorItem.id)}
+                        className={`flex items-center gap-2.5 p-3 rounded-2xl border transition-all text-right cursor-pointer ${
+                          currentThemeColor === colorItem.id 
+                            ? 'border-gray-900 bg-gray-50/50 shadow-xs' 
+                            : 'border-gray-200 bg-white hover:bg-gray-50'
+                        }`}
+                      >
+                        <span className={`w-4 h-4 rounded-full ${colorItem.bg} shrink-0 shadow-xs`} />
+                        <span className="text-xs font-bold text-gray-700">{colorItem.name}</span>
+                        {currentThemeColor === colorItem.id && <Check size={12} className="text-gray-950 mr-auto shrink-0" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 2. Font Family Selection */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
+                    <span className="w-1.5 h-4 bg-amber-500 rounded-full inline-block"></span>
+                    اختر الخط العربي والافتراضي للموقع (Font Family):
+                  </h3>
+                  <p className="text-xs text-gray-400 font-medium">خطوط مميزة ومصححة للمتاجر الإلكترونية وتناسب جميع أجهزة الجوال.</p>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-1">
+                    {[
+                      { id: 'Tajawal', name: 'خط تجوال متناسق', style: 'font-sans font-medium' },
+                      { id: 'Cairo', name: 'خط القاهرة الرياضي', style: 'font-serif font-black' },
+                      { id: 'Almarai', name: 'خط المراعي الناعم', style: 'font-medium' },
+                      { id: 'Inter', name: 'خط Inter الغربي', style: 'font-sans font-semibold' }
+                    ].map((fontItem) => (
+                      <button
+                        key={fontItem.id}
+                        type="button"
+                        onClick={() => setCurrentFontFamily(fontItem.id)}
+                        className={`flex flex-col gap-1 p-4 rounded-2xl border transition-all text-right cursor-pointer ${
+                          currentFontFamily === fontItem.id 
+                            ? 'border-gray-900 bg-gray-50/50 shadow-xs' 
+                            : 'border-gray-200 bg-white hover:bg-gray-50'
+                        }`}
+                      >
+                        <span className="text-xs font-bold text-gray-900">{fontItem.name}</span>
+                        <span className="text-[10px] text-gray-400 font-mono">Font: {fontItem.id}</span>
+                        <span className="text-base text-gray-500 mt-2 block" style={{ fontFamily: fontItem.id }}>
+                          أحذية مميزة بأسعار رائعة
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 3. Merchant Tab Visibility Control */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
+                    <span className="w-1.5 h-4 bg-amber-500 rounded-full inline-block"></span>
+                    تخصيص تبويبات لوحة التحكم المتاحة مسبقاً للتاجر:
+                  </h3>
+                  <p className="text-xs text-gray-400 font-medium font-sans">التبويبات التي سيسمح لشركاء العمل والتاجر باستعراضها والتعامل معها لتقليل التشتيت وزيادة الإنتاجية.</p>
+                  
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-1">
+                    {[
+                      { id: 'stats', label: 'إحصائيات المبيعات والنشاط' },
+                      { id: 'products', label: 'إدارة الكتالوج والأحذية' },
+                      { id: 'orders', label: 'إدارة طلبات الشراء والفرز' },
+                      { id: 'store', label: 'عناوين التواصل وعملة المتجر' },
+                    ].map((tabCtrl) => {
+                      const isChecked = visibleTabs.includes(tabCtrl.id);
+                      return (
+                        <label 
+                          key={tabCtrl.id}
+                          className={`flex items-center gap-3 p-3.5 rounded-2xl border cursor-pointer transition-all select-none ${
+                            isChecked 
+                              ? 'border-gray-900 bg-gray-50/50' 
+                              : 'border-gray-200 bg-white hover:bg-gray-50'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            className="rounded border-gray-300 text-amber-550 focus:ring-amber-500"
+                            checked={isChecked}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setVisibleTabs([...visibleTabs, tabCtrl.id]);
+                              } else {
+                                setVisibleTabs(visibleTabs.filter(id => id !== tabCtrl.id));
+                              }
+                            }}
+                          />
+                          <span className="text-xs font-bold text-gray-750">{tabCtrl.label}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 3.5 Dynamic Navbar Categories Customization */}
+                <div className="space-y-4 pt-4 border-t border-gray-100">
+                  <h3 className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
+                    <span className="w-1.5 h-4 bg-amber-500 rounded-full inline-block"></span>
+                    تعديل وتبويبات وحقول النيف بار (Dynamic Navbar Tabs Picker):
+                  </h3>
+                  <p className="text-xs text-gray-400 font-medium font-sans">
+                    تعديل وتخصيص التبويبات المتاحة للزبائن لمشاهدة وتصفية الكتالوج في أعلى النيف بار. ميزة حصرية لإعادة هيكلة المتجر بمرونة:
+                  </p>
+
+                  {/* Add New Category form controls */}
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newCatName}
+                      onChange={(e) => setNewCatName(e.target.value)}
+                      placeholder="امثلة: كلاسيك 👑، أحذية جري ⚡، عروض التصفية 🏷️"
+                      className="px-3.5 py-2.5 bg-gray-50 rounded-xl border border-gray-200 text-xs text-right focus:bg-white focus:ring-2 focus:ring-amber-500/20 outline-hidden flex-1"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (newCatName.trim()) {
+                          const id = newCatName.trim();
+                          if (!categoriesList.some(cat => cat.id === id)) {
+                            setCategoriesList([...categoriesList, { id, name: id }]);
+                          }
+                          setNewCatName('');
+                        }
+                      }}
+                      className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    >
+                      <Plus size={14} />
+                      تثبيت وإدراج تبويب جديد
+                    </button>
+                  </div>
+
+                  {/* Display list of current categories */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2">
+                    {/* Hardcoded 'all' category (always first / un-deletable) */}
+                    <div className="p-3 bg-gray-100 rounded-2xl border border-gray-200/50 flex justify-between items-center text-xs font-bold text-gray-500 select-none">
+                      <span>الكل 👟 (افتراضي دائم)</span>
+                    </div>
+
+                    {categoriesList.map((cat, index) => (
+                      <div key={cat.id} className="p-3 bg-white rounded-2xl border border-gray-150 flex justify-between items-center text-xs font-bold text-gray-800 shadow-2xs hover:border-gray-300 transition-all">
+                        <span>{cat.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCategoriesList(categoriesList.filter((_, i) => i !== index));
+                          }}
+                          className="p-1 text-red-500 hover:bg-red-50 rounded-lg transition-all cursor-pointer"
+                          title="حذف هذا التبويب"
+                        >
+                          <X size={13} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 4. Credentials Configuration */}
+                <div className="space-y-4 pt-4 border-t border-gray-100">
+                  <h3 className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
+                    <span className="w-1.5 h-4 bg-amber-500 rounded-full inline-block"></span>
+                    تخصيص بيانات الدخول وحماية الخصوصية (Credential Protections):
+                  </h3>
+                  <p className="text-xs text-gray-400 font-medium font-sans">استخدم معلومات مميزة لحسابات الدخول بدل المحددة مسبقاً لحظر المخترقين والزوار المتطفلين عن تغيير البيانات.</p>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-1 text-right">
+                    
+                    {/* Merchant Login Data */}
+                    <div className="bg-gray-50/50 p-5 rounded-2xl border border-gray-100 space-y-3.5">
+                      <h4 className="text-xs font-black text-gray-700 flex items-center gap-1.5 justify-end">
+                        <User size={14} className="text-blue-500" />
+                        حساب التاجر المشرف لدخول لوحة القيادة:
+                      </h4>
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-bold text-gray-500">البريد الإلكتروني للتاجر:</label>
+                        <input
+                          type="email"
+                          value={mEmailInput}
+                          onChange={(e) => setMEmailInput(e.target.value)}
+                          className="px-3.5 py-2.5 bg-white rounded-xl border border-gray-200 text-xs font-mono text-left focus:ring-2 focus:ring-amber-500/20 outline-hidden"
+                          required
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-bold text-gray-500">كلمة المرور للتاجر:</label>
+                        <input
+                          type="password"
+                          value={mPassInput}
+                          onChange={(e) => setMPassInput(e.target.value)}
+                          className="px-3.5 py-2.5 bg-white rounded-xl border border-gray-200 text-xs font-mono text-left focus:ring-2 focus:ring-amber-500/20 outline-hidden"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    {/* Developer/Admin Login Data */}
+                    <div className="bg-gray-50/50 p-5 rounded-2xl border border-gray-100 space-y-3.5">
+                      <h4 className="text-xs font-black text-gray-700 flex items-center gap-1.5 justify-end">
+                        <Key size={14} className="text-purple-500" />
+                        حساب المطور والمدير العام (الوصول الكامل):
+                      </h4>
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-bold text-gray-500">البريد الإلكتروني للرئيس/المطور:</label>
+                        <input
+                          type="email"
+                          value={dEmailInput}
+                          onChange={(e) => setDEmailInput(e.target.value)}
+                          className="px-3.5 py-2.5 bg-white rounded-xl border border-gray-200 text-xs font-mono text-left focus:ring-2 focus:ring-amber-500/20 outline-hidden"
+                          required
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-bold text-gray-400">كلمة المرور للرئيس/المطور:</label>
+                        <input
+                          type="password"
+                          value={dPassInput}
+                          onChange={(e) => setDPassInput(e.target.value)}
+                          className="px-3.5 py-2.5 bg-white rounded-xl border border-gray-200 text-xs font-mono text-left focus:ring-2 focus:ring-amber-500/20 outline-hidden"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+
+                {/* Save Button */}
+                <div className="flex justify-end pt-5 border-t border-gray-150">
+                  <button
+                    type="submit"
+                    className="px-6 py-3.5 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl font-black text-sm flex items-center gap-2 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all cursor-pointer"
+                  >
+                    <Save size={18} />
+                    حفظ وإقرار كامل تفاصيل المظهر والتطبيقات ⚙️
+                  </button>
+                </div>
+
               </form>
             </div>
           )}
@@ -819,11 +1429,9 @@ export default function AdminDashboard({
                       onChange={(e) => setPCategory(e.target.value)}
                       className="px-4 py-2.5 bg-gray-50 rounded-xl border border-gray-200 focus:bg-white focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-hidden cursor-pointer"
                     >
-                      <option value="أحذية رياضية">أحذية رياضية</option>
-                      <option value="أحذية كاجوال">أحذية كاجوال</option>
-                      <option value="أحذية كلاسيك">أحذية كلاسيك</option>
-                      <option value="أحذية نسائية">أحذية نسائية</option>
-                      <option value="أطفال ونشء">أطفال ونشء</option>
+                      {categoriesList.map(cat => (
+                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                      ))}
                     </select>
                   </div>
 

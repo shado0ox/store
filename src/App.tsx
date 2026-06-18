@@ -15,7 +15,9 @@ import { motion, AnimatePresence } from 'motion/react';
 export default function App() {
   const [currentView, setCurrentView] = useState<'store' | 'admin'>('store');
   const [activeCategory, setActiveCategory] = useState<string>('all');
-  const [role, setRole] = useState<UserRole>('merchant');
+  const [role, setRole] = useState<UserRole>(() => {
+    return (localStorage.getItem('shoestore_dashboard_role') as UserRole) || 'merchant';
+  });
 
   // Products and Orders lists loaded from server
   const [products, setProducts] = useState<Product[]>([]);
@@ -158,7 +160,7 @@ export default function App() {
   const featuredPremiumShoes = products.filter(p => p.featured && p.inStock);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col font-sans selection:bg-amber-500 selection:text-white antialiased text-right rtl-grid" id="full-pwa-app">
+    <div className="min-h-screen bg-gray-50 flex flex-col font-sans antialiased text-right rtl-grid" id="full-pwa-app" style={{ fontFamily: settings.fontFamily || 'Tajawal' }}>
       {/* Navbar Global */}
       <Navbar
         onCartToggle={() => setIsCartOpen(!isCartOpen)}
@@ -169,7 +171,6 @@ export default function App() {
         currentView={currentView}
         onChangeView={setCurrentView}
         settings={settings}
-        isConnected={appwriteService.isConnected()}
       />
 
       {/* PWA Mobile Installation Hero banner popup */}
